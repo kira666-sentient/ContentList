@@ -1,15 +1,20 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { CONFIG } from '../src/config.js';
 import { searchBooks, getBookDetails } from '../src/api/books.js';
 import { searchMusic, getMusicDetails } from '../src/api/music.js';
 import { searchPodcasts, getPodcastDetails } from '../src/api/podcasts.js';
 import { searchRAWG, getRAWGDetails } from '../src/api/rawg.js';
 
-// Initialize Firebase (using the web config from src/config.js)
-const firebaseApp = initializeApp(CONFIG.FIREBASE);
-const db = getFirestore(firebaseApp);
+// Initialize Firebase Admin (Server-side bypasses security rules)
+if (getApps().length === 0) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  initializeApp({
+    credential: cert(serviceAccount)
+  });
+}
+const db = getFirestore();
 
 export default async function handler(req, res) {
   // Only allow POST requests for the webhook
@@ -214,9 +219,8 @@ export default async function handler(req, res) {
         itemData.personalNotes = 'Added via Telegram Bot';
         itemData.updatedAt = new Date().toISOString();
 
-        // Save directly to Firebase Database using Client SDK!
-        const docRef = doc(db, 'users', FIREBASE_UID, 'contentList', itemData.id);
-        await setDoc(docRef, itemData, { merge: true });
+        // Save directly to Firebase Database using Admin SDK!
+        await db.collection('users').doc(FIREBASE_UID).collection('contentList').doc(itemData.id).set(itemData, { merge: true });
 
         await editTelegramMessage(chatId, messageId, `✅ <b>${title}</b> has been successfully added to your "Plan to Watch" list!`);
         return res.status(200).send('OK');
@@ -231,6 +235,8 @@ export default async function handler(req, res) {
     // Attempt to notify user of error if possible
     if (message && message.chat) {
       await sendTelegramMessage(message.chat.id, "⚠️ Sorry, an error occurred while processing your request.");
+    } else if (callback_query && callback_query.message) {
+      await sendTelegramMessage(callback_query.message.chat.id, "⚠️ Sorry, an error occurred while processing your request.");
     }
     return res.status(200).send('Error processed');
   }
