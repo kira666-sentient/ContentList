@@ -125,7 +125,7 @@ export default async function handler(req, res) {
         const fallbackText = `❌ I couldn't find anything matching "<b>${queryTitle}</b>" in the main database.\n\nWould you like to force-add it as a Custom Item?`;
         const fallbackMarkup = {
           inline_keyboard: [[
-            { text: '🛠️ Add as Custom Item', callback_data: `add_custom_${safeTitle}` },
+            { text: '🛠️ Add as Custom Item', callback_data: `add_custom_${extracted.type}_${safeTitle}` },
             { text: '❌ Cancel', callback_data: `cancel` }
           ]]
         };
@@ -194,12 +194,15 @@ export default async function handler(req, res) {
         } else if (type === 'podcast') {
           itemData = await getPodcastDetails(id);
         } else if (type === 'custom') {
-          // Fallback for custom items that weren't found in any database
+          // parts[1] is 'custom', parts[2] is the actual category, parts[3+] is the title
+          const realType = parts[2];
+          const title = parts.slice(3).join('_');
+          
           itemData = {
-            id: `custom_${Date.now()}`,
+            id: `custom_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
             originalId: `custom_${Date.now()}`,
-            title: parts.slice(2).join('_'), // Reconstruct the title from the callback data
-            type: 'custom',
+            title: title,
+            type: realType,
             year: new Date().getFullYear().toString(),
             poster: '',
             rating: 0
