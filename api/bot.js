@@ -176,6 +176,6 @@ export default async function handler(req, res) {
     if (message && message.chat) {
       await sendTelegramMessage(message.chat.id, "⚠️ Sorry, an error occurred while processing your request.");
     }
-    return res.status(500).send('Error');
+    return res.status(200).send('Error processed');
   }
 }
