@@ -102,12 +102,47 @@ async function runImport() {
 
       if (itemData) {
         await db.collection('users').doc(FIREBASE_UID).collection('contentList').doc(itemData.id).set(itemData, { merge: true });
-        console.log(`✅ Added: ${itemData.title}`);
+        console.log(`✅ API Success: Added ${itemData.title}`);
       } else {
-        console.log(`❌ Not found: ${item.query}`);
+        // If API search fails (e.g. Delisted games, rare anime), gracefully fallback to Custom Item
+        itemData = {
+          id: `custom_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          originalId: `custom_${Date.now()}`,
+          title: item.query,
+          type: item.expectedType,
+          year: "",
+          poster: "",           // Leave blank so Web App generates gorgeous gradient placeholder
+          fallbackPoster: "",   // Leave blank so Web App generates gorgeous gradient placeholder
+          backdrop: "",
+          rating: 0,
+          status: 'plan',
+          personalRating: 0,
+          personalNotes: 'Added via bulk import (Custom Fallback)',
+          updatedAt: new Date().toISOString()
+        };
+        await db.collection('users').doc(FIREBASE_UID).collection('contentList').doc(itemData.id).set(itemData, { merge: true });
+        console.log(`✨ Custom Fallback: Added ${itemData.title}`);
       }
     } catch (e) {
-      console.log(`⚠️ Error on ${item.query}: ${e.message}`);
+      console.log(`⚠️ Error on ${item.query}: ${e.message}. Creating custom fallback...`);
+      // Failsafe custom item generation even on API crash
+      const fallbackData = {
+          id: `custom_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          originalId: `custom_${Date.now()}`,
+          title: item.query,
+          type: item.expectedType,
+          year: "",
+          poster: "",           
+          fallbackPoster: "",   
+          backdrop: "",
+          rating: 0,
+          status: 'plan',
+          personalRating: 0,
+          personalNotes: `Added via bulk import (Error: ${e.message})`,
+          updatedAt: new Date().toISOString()
+      };
+      await db.collection('users').doc(FIREBASE_UID).collection('contentList').doc(fallbackData.id).set(fallbackData, { merge: true });
+      console.log(`✨ Custom Fallback (After Error): Added ${fallbackData.title}`);
     }
     
     await delay(500); // Rate limiting
