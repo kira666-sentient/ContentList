@@ -116,7 +116,15 @@ export default async function handler(req, res) {
       }
 
       if (results.length === 0) {
-        await sendTelegramMessage(chatId, `❌ I couldn't find anything matching "<b>${queryTitle}</b>".`);
+        const safeTitle = queryTitle.length > 40 ? queryTitle.substring(0, 40) + '...' : queryTitle;
+        const fallbackText = `❌ I couldn't find anything matching "<b>${queryTitle}</b>" in the main database.\n\nWould you like to force-add it as a Custom Item?`;
+        const fallbackMarkup = {
+          inline_keyboard: [[
+            { text: '🛠️ Add as Custom Item', callback_data: `add_custom_${safeTitle}` },
+            { text: '❌ Cancel', callback_data: `cancel` }
+          ]]
+        };
+        await sendTelegramMessage(chatId, fallbackText, fallbackMarkup);
         return res.status(200).send('OK');
       }
 
@@ -180,6 +188,17 @@ export default async function handler(req, res) {
           itemData = await getMusicDetails(id);
         } else if (type === 'podcast') {
           itemData = await getPodcastDetails(id);
+        } else if (type === 'custom') {
+          // Fallback for custom items that weren't found in any database
+          itemData = {
+            id: `custom_${Date.now()}`,
+            originalId: `custom_${Date.now()}`,
+            title: parts.slice(2).join('_'), // Reconstruct the title from the callback data
+            type: 'custom',
+            year: new Date().getFullYear().toString(),
+            poster: '',
+            rating: 0
+          };
         }
 
         if (!itemData) {
