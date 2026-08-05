@@ -30,8 +30,7 @@
 
 ## 4. Known Limitations & Future Work (TODOs)
 If you are picking up this project, here are the things that are unfinished or might break:
-1. **RAWG API Key:** In `src/config.js`, the `RAWG_API_KEY` is currently a placeholder (`'YOUR_RAWG_API_KEY'`). Game searching will fail until a real key is acquired from `rawg.io` and inserted.
-2. **Music & Podcasts:** The APIs for Music and Podcasts in `src/components/searchBar.js` are currently mocking data or using public open APIs that might rate limit. They need robust API keys (like Spotify/ListenNotes) for production.
+1. **Music & Podcasts:** The APIs for Music and Podcasts in `src/components/searchBar.js` are currently mocking data or using public open APIs that might rate limit. They need robust API keys (like Spotify/ListenNotes) for production.
 3. **Telegram Voice Messages:** The user wanted to use Google Assistant to add items, but Assistant blocks bot messaging. A great future feature would be parsing Telegram `message.voice` audio files and passing them to Gemini to allow voice-adding natively in the Telegram chat.
 4. **Firebase Security Rules:** We relied on Firebase's default 30-day open testing rules. In the future, the Firestore rules need to be locked down to `allow read, write: if request.auth != null && request.auth.uid == userId;`.
 5. **No Service Account:** The `/api/bot.js` writes to Firestore using the client SDK by passing the user's UID directly. If strict Firestore rules are added, the bot will need to be refactored to use `firebase-admin` with a Service Account JSON to bypass rules.

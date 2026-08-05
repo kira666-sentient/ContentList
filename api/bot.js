@@ -2,6 +2,10 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc } from 'firebase/firestore';
 import { CONFIG } from '../src/config.js';
+import { searchBooks, getBookDetails } from '../src/api/books.js';
+import { searchMusic, getMusicDetails } from '../src/api/music.js';
+import { searchPodcasts, getPodcastDetails } from '../src/api/podcasts.js';
+import { searchRAWG, getRAWGDetails } from '../src/api/rawg.js';
 
 // Initialize Firebase (using the web config from src/config.js)
 const firebaseApp = initializeApp(CONFIG.FIREBASE);
@@ -67,9 +71,10 @@ export default async function handler(req, res) {
         You are an assistant for a media tracker app. 
         A user wants to add a piece of media to their list. 
         Extract the exact title and media type. 
-        The type MUST be either 'movie' or 'tv'. 
+        The type MUST be one of: 'movie', 'tv', 'game', 'book', 'music', 'podcast'. 
         If they say 'series', 'show', or 'anime', classify it as 'tv'.
-        If they say 'film', classify it as 'movie'. 
+        If they say 'film', classify it as 'movie'.
+        If they say 'song', 'album', or 'artist', classify it as 'music'.
         Fix any obvious spelling errors in the title.
         
         User input: "${userText}"
@@ -88,26 +93,41 @@ export default async function handler(req, res) {
       const extracted = JSON.parse(jsonText);
       const queryTitle = extracted.title;
 
-      // Step B: Search TMDB with the cleaned title
-      const tmdbRes = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${CONFIG.TMDB_API_KEY}&query=${encodeURIComponent(queryTitle)}`);
-      const tmdbData = await tmdbRes.json();
+      // Step B: Search the appropriate API based on Gemini's classification
+      let results = [];
       
-      // Filter for movies and tv
-      const results = tmdbData.results.filter(r => r.media_type === 'movie' || r.media_type === 'tv');
+      if (extracted.type === 'movie' || extracted.type === 'tv') {
+        const tmdbRes = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${CONFIG.TMDB_API_KEY}&query=${encodeURIComponent(queryTitle)}`);
+        const tmdbData = await tmdbRes.json();
+        results = tmdbData.results.filter(r => r.media_type === 'movie' || r.media_type === 'tv').map(r => ({
+          id: r.id,
+          title: r.title || r.name,
+          year: (r.release_date || r.first_air_date || '').split('-')[0],
+          type: r.media_type
+        }));
+      } else if (extracted.type === 'game') {
+        results = await searchRAWG(queryTitle);
+      } else if (extracted.type === 'book') {
+        results = await searchBooks(queryTitle);
+      } else if (extracted.type === 'music') {
+        results = await searchMusic(queryTitle);
+      } else if (extracted.type === 'podcast') {
+        results = await searchPodcasts(queryTitle);
+      }
 
       if (results.length === 0) {
-        await sendTelegramMessage(chatId, `❌ I couldn't find anything matching "<b>${queryTitle}</b>" on TMDB.`);
+        await sendTelegramMessage(chatId, `❌ I couldn't find anything matching "<b>${queryTitle}</b>".`);
         return res.status(200).send('OK');
       }
 
       const topResult = results[0];
-      const title = topResult.title || topResult.name;
-      const year = (topResult.release_date || topResult.first_air_date || '').split('-')[0];
-      const type = topResult.media_type; // 'movie' or 'tv'
+      const title = topResult.title;
+      const year = topResult.year;
+      const type = topResult.type || extracted.type; 
       
-      const responseText = `Found: <b>${title}</b> (${year})\nDo you want to add this to your list?`;
+      const responseText = year ? `Found: <b>${title}</b> (${year})\nDo you want to add this to your list?` : `Found: <b>${title}</b>\nDo you want to add this to your list?`;
       
-      // Inline Keyboard with the TMDB ID
+      // Inline Keyboard with the exact type and ID
       const replyMarkup = {
         inline_keyboard: [[
           { text: '✅ Add to Plan to Watch', callback_data: `add_${type}_${topResult.id}` },
@@ -134,29 +154,46 @@ export default async function handler(req, res) {
 
       if (data.startsWith('add_')) {
         const parts = data.split('_');
-        const type = parts[1]; // 'movie' or 'tv'
-        const id = parts[2];
+        const type = parts[1];
+        const id = parts.slice(2).join('_'); // Safe extraction in case ID has underscores
 
-        // Fetch exact details from TMDB to get the poster and full data
-        const tmdbRes = await fetch(`https://api.themoviedb.org/3/${type}/${id}?api_key=${CONFIG.TMDB_API_KEY}`);
-        const details = await tmdbRes.json();
+        let itemData = null;
 
-        const title = details.title || details.name;
-        const year = (details.release_date || details.first_air_date || '').split('-')[0];
-        
-        const itemData = {
-          id: `${type}_${details.id}`,
-          originalId: details.id,
-          title: title,
-          type: type,
-          year: year,
-          poster: details.poster_path ? `https://image.tmdb.org/t/p/w500${details.poster_path}` : '',
-          rating: details.vote_average || 0,
-          status: 'plan', // Automatically add to 'Plan to Watch'
-          personalRating: 0,
-          personalNotes: 'Added via Telegram Bot',
-          updatedAt: new Date().toISOString()
-        };
+        // Fetch exact details based on type
+        if (type === 'movie' || type === 'tv') {
+          const tmdbRes = await fetch(`https://api.themoviedb.org/3/${type}/${id}?api_key=${CONFIG.TMDB_API_KEY}`);
+          const details = await tmdbRes.json();
+          itemData = {
+            id: `${type}_${details.id}`,
+            originalId: details.id,
+            title: details.title || details.name,
+            type: type,
+            year: (details.release_date || details.first_air_date || '').split('-')[0],
+            poster: details.poster_path ? `https://image.tmdb.org/t/p/w500${details.poster_path}` : '',
+            rating: details.vote_average || 0
+          };
+        } else if (type === 'game') {
+          itemData = await getRAWGDetails(id);
+        } else if (type === 'book') {
+          itemData = await getBookDetails(id);
+        } else if (type === 'music') {
+          itemData = await getMusicDetails(id);
+        } else if (type === 'podcast') {
+          itemData = await getPodcastDetails(id);
+        }
+
+        if (!itemData) {
+           await editTelegramMessage(chatId, messageId, `❌ <i>Error fetching full details for this item.</i>`);
+           return res.status(200).send('OK');
+        }
+
+        const title = itemData.title;
+
+        // Apply shared default fields
+        itemData.status = 'plan';
+        itemData.personalRating = 0;
+        itemData.personalNotes = 'Added via Telegram Bot';
+        itemData.updatedAt = new Date().toISOString();
 
         // Save directly to Firebase Database using Client SDK!
         const docRef = doc(db, 'users', FIREBASE_UID, 'contentList', itemData.id);
