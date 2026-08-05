@@ -49,7 +49,9 @@ export async function searchRAWG(query) {
   if (!query) return DEMO_GAMES; // CheapShark requires a query
 
   try {
-    const res = await fetch(`https://www.cheapshark.com/api/1.0/games?title=${encodeURIComponent(query)}&limit=12`);
+    const res = await fetch(`https://www.cheapshark.com/api/1.0/games?title=${encodeURIComponent(query)}&limit=12`, {
+      headers: { 'User-Agent': 'ContentListBot/1.0 (hello@contentlist.app)' }
+    });
     const data = await res.json();
     
     return data.map(g => {
@@ -92,7 +94,9 @@ export async function getRAWGDetails(id) {
   }
 
   try {
-    const res = await fetch(`https://www.cheapshark.com/api/1.0/games?id=${id}`);
+    const res = await fetch(`https://www.cheapshark.com/api/1.0/games?id=${id}`, {
+      headers: { 'User-Agent': 'ContentListBot/1.0 (hello@contentlist.app)' }
+    });
     const data = await res.json();
     const info = data.info;
     // Build perfect high-res Steam URLs using the steamAppID
