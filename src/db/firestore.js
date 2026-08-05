@@ -24,7 +24,7 @@ export async function saveContentItem(item) {
   if (!user) throw new Error('Must be logged in');
 
   const itemData = {
-    id: `${item.type}_${item.id}`,
+    id: item.exactId || `${item.type}_${item.id}`,
     originalId: item.id,
     title: item.title,
     type: item.type,

@@ -194,6 +194,7 @@ export async function openDetailModal(id, type) {
       const personalNotes = backdrop.querySelector('#modalNotes').value;
 
       await saveContentItem({
+        exactId: savedRecord ? savedRecord.id : null,
         id: data.id,
         title: data.title,
         type: data.type,
@@ -214,7 +215,7 @@ export async function openDetailModal(id, type) {
   const removeBtn = backdrop.querySelector('#removeItemBtn');
   if (removeBtn) {
     removeBtn.onclick = async () => {
-      await removeContentItem(`${type}_${data.id}`);
+      await removeContentItem(savedRecord.id);
       showToast(`Removed "${data.title}" from your list`, 'info');
       closeModal();
       window.dispatchEvent(new Event('hashchange'));
