@@ -68,7 +68,9 @@ export async function openDetailModal(id, type) {
   // Check if item is already in user's saved list
   const savedRecord = await isItemSaved(type, id);
 
-  const backdropImg = data.backdrop || data.poster || 'https://via.placeholder.com/1200x500/12151c/64748b?text=ContentList';
+  const generatedCover = generateCustomPlaceholder(data.title, data.type);
+  const finalPoster = data.poster || generatedCover;
+  const backdropImg = data.backdrop || finalPoster;
 
   backdrop.innerHTML = `
     <div class="modal-container">
@@ -78,7 +80,7 @@ export async function openDetailModal(id, type) {
 
       <div class="detail-hero" style="background-image: url('${backdropImg}');">
         <div class="detail-hero-content">
-          <img src="${data.poster}" class="detail-poster" alt="${data.title}" onerror="this.onerror=null; this.src='${data.fallbackPoster || generateCustomPlaceholder(data.title, data.type)}';" />
+          <img src="${finalPoster}" class="detail-poster" alt="${data.title}" onerror="this.onerror=null; this.src='${data.fallbackPoster || generatedCover}';" />
           <div class="detail-title-group">
             <h1>${data.title}</h1>
             <div class="detail-meta-pills">
