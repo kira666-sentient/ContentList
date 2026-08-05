@@ -5,7 +5,7 @@ export function createContentCard(item) {
   const card = document.createElement('div');
   card.className = 'content-card';
 
-  const posterSrc = item.poster || 'https://via.placeholder.com/300x450/1a1e29/64748b?text=No+Cover';
+  const posterSrc = item.poster || generateCustomPlaceholder(item.title, item.type);
   
   const typeIcons = {
     movie: '🎬 Movie',
