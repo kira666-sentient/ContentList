@@ -187,12 +187,16 @@ export default async function handler(req, res) {
           };
         } else if (type === 'game') {
           itemData = await getRAWGDetails(id);
+          if (itemData) { itemData.originalId = id; itemData.id = `game_${id}`; }
         } else if (type === 'book') {
           itemData = await getBookDetails(id);
+          if (itemData) { itemData.originalId = id; itemData.id = `book_${id}`; }
         } else if (type === 'music') {
           itemData = await getMusicDetails(id);
+          if (itemData) { itemData.originalId = id; itemData.id = `music_${id}`; }
         } else if (type === 'podcast') {
           itemData = await getPodcastDetails(id);
+          if (itemData) { itemData.originalId = id; itemData.id = `podcast_${id}`; }
         } else if (type === 'custom') {
           // parts[1] is 'custom', parts[2] is the actual category, parts[3+] is the title
           const realType = parts[2];
