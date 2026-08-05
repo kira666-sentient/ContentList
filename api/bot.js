@@ -59,7 +59,7 @@ export default async function handler(req, res) {
       const userText = message.text;
 
       if (userText.startsWith('/start')) {
-        await sendTelegramMessage(chatId, "👋 Welcome to your ContentList Bot!\n\nJust tell me what movie or TV show you want to add. For example:\n<i>\"Add the movie inception\"</i>\n<i>\"Add breaking bad\"</i>");
+        await sendTelegramMessage(chatId, "👋 Welcome to your ContentList Bot!\n\nJust tell me what movie, TV show, game, book, or song you want to add. For example:\n<i>\"Add the movie inception\"</i>\n<i>\"Add the game Portal 2\"</i>\n<i>\"Add the book Atomic Habits\"</i>");
         return res.status(200).send('OK');
       }
 
