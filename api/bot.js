@@ -61,7 +61,7 @@ export default async function handler(req, res) {
 
       // Step A: Use Gemini to extract the intent and fix typos
       const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
       
       const prompt = `
         You are an assistant for a media tracker app. 
